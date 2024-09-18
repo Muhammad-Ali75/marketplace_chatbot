@@ -1,39 +1,37 @@
-import React, { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { socket } from '../../config/socket';
 import './Chat.css';
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
 
+  useEffect(() => {
+    // Listen for bot responses from the server
+    socket.on('botMessage', (message) => {
+      console.log(message);
+      const botMessage = { text: message, sender: 'bot' };
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+    });
+
+    // Clean up on component unmount
+    return () => {
+      socket.off('botMessage');
+    };
+  }, []);
+
   // Function to handle sending messages
-  const sendMessage = async () => {
+  const sendMessage = () => {
     if (!input.trim()) return;
+
+    console.log(input);
 
     // Add user message to the chat
     const userMessage = { text: input, sender: 'user' };
     setMessages([...messages, userMessage]);
 
-    // Simulate sending the message to the server and getting a response
-    try {
-      const response = await fetch('http://localhost:3000/chatbot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: input }),
-      });
-
-      const data = await response.json();
-      const botMessage = { text: data.response, sender: 'bot' };
-      setMessages((prevMessages) => [...prevMessages, botMessage]);
-    } catch (error) {
-      console.error('Error fetching chatbot response:', error);
-      const errorMessage = {
-        text: 'Sorry, something went wrong.',
-        sender: 'bot',
-      };
-      setMessages((prevMessages) => [...prevMessages, errorMessage]);
-    }
+    // Send the message to the server via socket
+    socket.emit('userMessage', input);
 
     // Clear input field
     setInput('');
